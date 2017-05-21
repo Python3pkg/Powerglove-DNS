@@ -13,7 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from netaddr import IPAddress
 
-from model import Record, Domain
+from .model import Record, Domain
 
 
 class PowergloveError(Exception):
@@ -154,7 +154,7 @@ class PowergloveDns(object):
         @return: a C{dict} mapping the A domain name to the domain
         """
 
-        return dict([(dom_name, dom) for dom_name, dom in self.domains.items()
+        return dict([(dom_name, dom) for dom_name, dom in list(self.domains.items())
                      if not dom_name.endswith('.in-addr.arpa')])
 
     @property
@@ -163,7 +163,7 @@ class PowergloveDns(object):
         @return: a C{dict} mapping the PTR domain name to the domain
         """
 
-        return dict([(dom_name, dom) for dom_name, dom in self.domains.items()
+        return dict([(dom_name, dom) for dom_name, dom in list(self.domains.items())
                      if dom_name.endswith('.in-addr.arpa')])
 
     def get_existing_records(self, rec_type='A', **criteria):
@@ -212,7 +212,7 @@ class PowergloveDns(object):
 
         inferred_domain = None
         max_matches = 0
-        for name, domain in domains.iteritems():
+        for name, domain in domains.items():
             matches = 0
             complete_match = True
             domain_parts = _split_reverse(name)
@@ -251,7 +251,7 @@ class PowergloveDns(object):
 
     def update_domain_serial(self, domain_id):
 
-        domain_to_update = [dom for dom in self.domains.itervalues() if dom.id == domain_id][0]
+        domain_to_update = [dom for dom in self.domains.values() if dom.id == domain_id][0]
         domain_to_update.touch_serial()
         self.log.debug('updated serial for %r', domain_to_update)
         self.session.add(domain_to_update)
@@ -354,12 +354,12 @@ class PowergloveDns(object):
             lower, upper = ip_range
             try:
                 ip_range = netaddr.ip.IPRange(lower, upper)
-            except netaddr.AddrFormatError, exc:
+            except netaddr.AddrFormatError as exc:
                 raise PowergloveError(exc)
             return ip_range
         elif len(ip_range) == 1:
             _ip = ip_range[0]
-            if isinstance(_ip, basestring) and '/' in _ip:
+            if isinstance(_ip, str) and '/' in _ip:
                 _ip=netaddr.ip.glob.cidr_to_glob(_ip)
             if not netaddr.ip.glob.valid_glob(_ip):
                 raise TypeError('unable to convert %r to IPRange' % _ip)
@@ -458,7 +458,7 @@ class PowergloveDns(object):
                                                          text_contents)
         self.log.debug('adding records to Power DNS')
         self.session.add(a_record)
-        self.session.add_all(created_records.values())
+        self.session.add_all(list(created_records.values()))
         self.session.commit()
         self.log.info('Created A Record: %r', a_record)
         return a_record.name, selected_ip_address
